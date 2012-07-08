@@ -28,8 +28,12 @@ void handlecmd(char *msg) {
     printf("Received command %s", msg);
     sscanf(msg, "%s/n", cmd, &arg);
     
-    if (!strcmp(cmd, "/name")) {
+    if (!strcmp(cmd, "/who")) {
+        printf("Identifying as %s\n", name);
         write(sockfd, name, 20);
+    }
+    else if (!strcmp(cmd, "/newname")) {
+      printf("That name is already in use! Please enter a different name.");
     }
     
     else if (!strcmp(cmd, "pow")) {
@@ -49,7 +53,7 @@ void *readt(void *arg) {
         
         //wait for update from server
         n = read(sockfd,readbuffer,255);
-        if (readbuffer[0] == 'q') {
+        if (!strcmp(readbuffer, "/q\n")) {
             //quit
             break;
         }
@@ -91,7 +95,7 @@ int main(int argc, char *argv[])
 {
     srand(time(NULL));
     if (argc < 3) {
-        fprintf(stderr,"usage %s hostname port\n", argv[0]);
+        fprintf(stderr,"usage %s hostname port username\n", argv[0]);
         exit(0);
     }
     if (argc == 4)
