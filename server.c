@@ -67,7 +67,7 @@ void pushtocli(char *msg, int fromclient) {
     int n = snprintf(final, MAX_MESSAGELEN, "[%s]: %s", names[fromclient], msg);
     final[n] = '\0';
     final[n-1] = '\n';
-    printf("Pushing %s", msg);
+    printf("SERVER -> CLIENTS: %s", msg);
     for (i = 0; i < MAX_CONNECTIONS; i++) {
       if (data[i].connected) {
 	write(clientsockfds[(data[i].id)], final, strlen(final));
@@ -117,7 +117,7 @@ void *opencon(void *arg) {
     while (1) {
         bzero(buffer, MAX_MESSAGELEN);
         n = read(clientsockfds[threaddata->id], buffer, MAX_MESSAGELEN-1);
-        printf("Read %s", buffer);
+        printf("%s -> SERVER: %s", names[threaddata->id], buffer);
         if (buffer[0] == '/') {
             servercmd(buffer);
         }
@@ -125,6 +125,7 @@ void *opencon(void *arg) {
         if (buffer[0] == '/' && buffer[1] == 'q') {
             printf("Closing %d...", clientsockfds[threaddata->id]);
             close(clientsockfds[threaddata->id]);
+	    bzero(names[threaddata->id], 20);
         }
         if (n < 0) {
             printf("ERROR reading from socket, waiting for new connection...");
@@ -133,8 +134,25 @@ void *opencon(void *arg) {
         }
         if (n == 0) {
             printf("Client %d quit, waiting for new connection...\n", clientsockfds[threaddata->id]);
+	    bzero(names[threaddata->id], 20);
             bzero(&cli_addr[threaddata->id], sizeof(cli_addr[threaddata->id]));
             clientsockfds[threaddata->id] = accept(sockfd, (struct sockaddr *) &cli_addr[threaddata->id], &clilens[threaddata->id]);
+	    printf("Connected!\n");
+	    threaddata->connected = 1;
+	    write(clientsockfds[threaddata->id], "/who\n", 7);
+	    names[threaddata->id][read(clientsockfds[threaddata->id], names[threaddata->id], 20)] = 0;
+	    int i;
+	    for (i=0; i<MAX_CONNECTIONS; i++) {
+	      if (!strcmp(names[i], names[threaddata->id]) && threaddata->id != i) {
+		write(clientsockfds[threaddata->id], "/newname\n", 10);
+		//subtract 1 so that we overwrite the newline is overwritten                                                                                                                                                     
+		names[threaddata->id][read(clientsockfds[threaddata->id], names[threaddata->id], 20)-1] = 0;
+		i = 0;
+	      }
+	    }
+	    printf("Client named %s\n", names[threaddata->id]);
+	    if (clientsockfds[threaddata->id] < 0)
+	      error("ERROR on accept");
         }
     }
 }

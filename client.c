@@ -6,34 +6,43 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h> 
+#include <ncurses.h>
+
+#define MAX_MESSAGELEN 1000
 
 int sockfd, portno;
 struct sockaddr_in serv_addr;
 struct hostent *server;
-char readbuffer[256];
-char writebuffer[256];
+char readbuffer[MAX_MESSAGELEN];
+char writebuffer[MAX_MESSAGELEN];
 char name[20];
 pthread_t writethread, readthread;
 pthread_attr_t pthread_attr_read, pthread_attr_write;
 
+int cur_x, cur_y;
+int max_x, max_y;
+
 void error(const char *msg)
 {
     perror(msg);
+    endwin();
     exit(0);
 }
 
 void handlecmd(char *msg) {
     char *cmd = (char *) malloc(20);
     float arg;
-    printf("Received command %s", msg);
+    printw("Received command %s", msg);
     sscanf(msg, "%s/n", cmd, &arg);
     
     if (!strcmp(cmd, "/who")) {
-        printf("Identifying as %s\n", name);
+        printw("Identifying as %s\n", name);
+	refresh();
         write(sockfd, name, 20);
     }
     else if (!strcmp(cmd, "/newname")) {
-      printf("That name is already in use! Please enter a different name.");
+      printw("That name is already in use! Please enter a different name.\n");
+      refresh();
     }
     
     else if (!strcmp(cmd, "pow")) {
@@ -49,21 +58,24 @@ void *readt(void *arg) {
     printf("Entering read thread...\n");
     while (1) {
         //zero out the readbuffer
-        bzero(readbuffer,256);
+      bzero(readbuffer, MAX_MESSAGELEN);
         
         //wait for update from server
-        n = read(sockfd,readbuffer,255);
+        n = read(sockfd,readbuffer,MAX_MESSAGELEN-1);
         if (!strcmp(readbuffer, "/q\n")) {
             //quit
             break;
         }
+	getyx(stdscr, cur_y, cur_x);
         if (n < 0) error("ERROR reading from socket");
         if (n == 0) error("ERROR null input from server, exiting...");
         if (readbuffer[0] == '/') {
             handlecmd(readbuffer);
         }
         else {
-            printf("%s",readbuffer);
+	    mvprintw(cur_y, 0, "%s",readbuffer);
+	    printw("%s", writebuffer);
+	    refresh();
         }
     }
     /*close thread*/
@@ -77,7 +89,23 @@ void *writet(void *arg) {
     while (1) {
         bzero(writebuffer,256);
         //get input from stdin
-        fgets(writebuffer,255,stdin);
+	int c, i=0;
+	while((writebuffer[i] = c = getch()) != EOF && c != '\n') {
+	  if (c == KEY_BACKSPACE || c == KEY_DC || c == 127) {
+	    i--;	   
+	    delch();
+	    getyx(stdscr, cur_y, cur_x);
+	    move(cur_y, cur_x-1);
+	    writebuffer[i] = 0;
+	  }
+	  else {
+	    i++;
+	    addch(c);
+	  }
+	  refresh();
+	}
+	writebuffer[i++] = '\n';
+	writebuffer[i] = '\0';
         //push input to server
         n = write(sockfd,writebuffer,strlen(writebuffer));
         if (writebuffer[0] == 'q') {
@@ -93,6 +121,14 @@ void *writet(void *arg) {
 
 int main(int argc, char *argv[])
 {
+    initscr();
+    cbreak();
+    noecho();
+    getmaxyx(stdscr, max_y, max_x);
+    //printw("test");
+    //refresh();
+    //getch();
+    //endwin();
     srand(time(NULL));
     if (argc < 3) {
         fprintf(stderr,"usage %s hostname port username\n", argv[0]);
@@ -133,5 +169,6 @@ int main(int argc, char *argv[])
     printf("All threads completed, exiting...\n");
 
     close(sockfd);
+    endwin();
     return 0;
 }
