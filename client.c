@@ -8,7 +8,7 @@
 #include <netdb.h> 
 #include <ncurses.h>
 
-#define MAX_MESSAGELEN 1000
+#define MAX_MESSAGELEN 2000
 
 int sockfd, portno;
 struct sockaddr_in serv_addr;
