@@ -20,6 +20,8 @@ struct pthreaddata {
 };
 typedef struct pthreaddata pthreaddata;
 
+
+
 //socket and port number the server runs on
 int sockfd, portno;
 //client socket file descriptors
@@ -35,7 +37,7 @@ pthreaddata data[MAX_CONNECTIONS];
 char names[MAX_CONNECTIONS][20];
 
 /*
-KILL the program, while printing an arror message
+KILL the program, while printing an error message
 */
 
 void error(char *err) {
@@ -196,11 +198,13 @@ int main(int argc, char *argv[]) {
     }
     printf("Bound to socket\n");
     listen(sockfd, 5);
+    printf("Listening...\n");
     pthread_t inputthread;
     pthread_attr_t custom_attrs;
     pthread_attr_init(&custom_attrs);
     pthread_create(&inputthread, &custom_attrs, (void *)&input, NULL);
-    int i;
+    int i = 0;
+    printf("Detatching threads...\n");
     while (i < MAX_CONNECTIONS) {
         clilens[i] = sizeof(cli_addr[i]);
         printf("Waiting for connection %d\n", i);

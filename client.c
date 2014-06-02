@@ -125,10 +125,6 @@ int main(int argc, char *argv[])
     cbreak();
     noecho();
     getmaxyx(stdscr, max_y, max_x);
-    //printw("test");
-    //refresh();
-    //getch();
-    //endwin();
     srand(time(NULL));
     if (argc < 3) {
         fprintf(stderr,"usage %s hostname port username\n", argv[0]);
