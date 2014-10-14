@@ -21,6 +21,8 @@ pthread_attr_t pthread_attr_read, pthread_attr_write;
 
 int cur_x, cur_y;
 int max_x, max_y;
+int lines = 0;
+
 
 void error(const char *msg)
 {
@@ -55,6 +57,7 @@ void handlecmd(char *msg) {
 void *readt(void *arg) {
     /*continually read from stdin until 'q' is read*/
     int n;
+
     printf("Entering read thread...\n");
     while (1) {
         //zero out the readbuffer
@@ -73,7 +76,15 @@ void *readt(void *arg) {
             handlecmd(readbuffer);
         }
         else {
-	    mvprintw(cur_y, 0, "%s",readbuffer);
+	    getmaxyx(stdscr, max_y, max_x);
+	    if (lines == max_y-1) {
+		scroll(stdscr);
+	    }
+	    else {
+		lines++;
+	    }
+	    mvprintw(lines-1, 0, "%s",readbuffer);
+      	    move(cur_y, cur_x);
 	    printw("%s", writebuffer);
 	    refresh();
         }
@@ -86,11 +97,16 @@ void *readt(void *arg) {
 void *writet(void *arg) {
     int n;
     printf("Entering write thread...\n");
+    scrollok(stdscr, true);
     while (1) {
         bzero(writebuffer,256);
         //get input from stdin
 	int c, i=0;
 	while((writebuffer[i] = c = getch()) != EOF && c != '\n') {
+	  int w, h;
+	  getmaxyx(stdscr, h, w);
+	  getyx(stdscr, cur_y, cur_x);
+	  move(h-1, cur_x);
 	  if (c == KEY_BACKSPACE || c == KEY_DC || c == 127) {
 	    i--;	   
 	    delch();
@@ -106,6 +122,9 @@ void *writet(void *arg) {
 	}
 	writebuffer[i++] = '\n';
 	writebuffer[i] = '\0';
+	move(cur_y, 0);
+	clrtoeol();
+	move(cur_y, 0);
         //push input to server
         n = write(sockfd,writebuffer,strlen(writebuffer));
         if (writebuffer[0] == 'q') {
